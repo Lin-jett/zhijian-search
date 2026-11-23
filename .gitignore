@@ -1,18 +1,10 @@
-# 密钥：绝对不能提交
-.env
-*.env
-backend/.env
-
-# 本地缓存与临时文件
-backend/_cache/
 __pycache__/
 *.pyc
+.env
+.env.*
+!.env.example
+*.log
+server_log.txt
 .DS_Store
-Thumbs.db
-
-# 编辑器
-.vscode/
-.idea/
-
-# IDE 项目数据（不提交，但不要删除该目录）
-.workbuddy/
+*.db
+cache/

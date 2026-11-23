@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>知鉴Search · 知乎增强检索引擎（原型）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* 暗色玻璃科技风 tokens */
+    --bg-0:#0a0e1a; --bg-1:#111831; --bg-2:#0d1326;
+    --glass:rgba(18,26,48,0.55); --glass-2:rgba(28,38,66,0.6);
+    --glass-border:rgba(120,160,220,0.18); --glass-border-strong:rgba(120,180,230,0.30);
+    --fg:#eef2fb; --fg-dim:#aab6d0; --fg-faint:#7f8bab;
+    --accent:#38bdf8; --accent-2:#22d3ee; --accent-grad:linear-gradient(135deg,#38bdf8,#22d3ee);
+    --ok:#34d399; --warn:#fbbf24; --danger:#f87171;
+    --blur:blur(15px);
+    --radius:16px; --radius-sm:10px;
+    --space-1:8px; --space-2:12px; --space-3:16px; --space-4:24px; --space-5:32px;
+    --shadow:0 8px 32px rgba(0,0,0,.45);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:'Atkinson Hyperlegible',-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+    color:var(--fg); min-height:100vh; line-height:1.6;
+    background:
+      radial-gradient(1100px 600px at 12% -5%, rgba(56,189,248,.16), transparent 60%),
+      radial-gradient(900px 600px at 95% 0%, rgba(124,58,237,.18), transparent 55%),
+      radial-gradient(700px 500px at 60% 110%, rgba(34,211,238,.10), transparent 60%),
+      linear-gradient(160deg,var(--bg-0),var(--bg-1) 50%,var(--bg-2));
+    background-attachment:fixed;
+  }
+  /* 细噪点叠加 */
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.035;z-index:0;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
+  .wrap{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:28px 22px 80px;}
+
+  /* 玻璃面板基类 */
+  .glass{background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+    border:1px solid var(--glass-border);border-radius:var(--radius);box-shadow:var(--shadow);}
+
+  /* 顶部品牌 */
+  .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;}
+  .brand{display:flex;align-items:center;gap:12px;}
+  .logo{width:40px;height:40px;border-radius:12px;background:var(--accent-grad);
+    display:grid;place-items:center;font-weight:700;color:#06121f;box-shadow:0 0 24px rgba(56,189,248,.5);}
+  .brand h1{font-size:22px;margin:0;letter-spacing:.5px;}
+  .brand .tagline{font-size:12px;color:var(--fg-dim);margin-top:2px;}
+  .pill{font-size:11px;padding:4px 10px;border-radius:20px;border:1px solid var(--glass-border);
+    color:var(--accent-2);background:rgba(34,211,238,.08);}
+
+  /* Hero 搜索 */
+  .hero{padding:26px;margin-bottom:18px;}
+  .hero h2{font-size:17px;margin:0 0 4px;font-weight:700;}
+  .hero p{margin:0 0 18px;color:var(--fg-dim);font-size:13px;}
+  .searchbar{display:flex;gap:10px;}
+  .searchbar input{flex:1;height:50px;border-radius:14px;padding:0 18px;font-size:15px;
+    color:var(--fg);background:rgba(255,255,255,.05);border:1px solid var(--glass-border);outline:none;
+    transition:border-color .2s, box-shadow .2s;font-family:inherit;}
+  .searchbar input::placeholder{color:var(--fg-faint);}
+  .searchbar input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(56,189,248,.25);}
+  .btn{height:50px;padding:0 24px;border:none;border-radius:14px;cursor:pointer;font-size:15px;font-weight:700;
+    color:#06121f;background:var(--accent-grad);box-shadow:0 6px 20px rgba(56,189,248,.35);
+    transition:transform .2s, box-shadow .2s;font-family:inherit;}
+  .btn:hover{transform:translateY(-1px);box-shadow:0 10px 28px rgba(56,189,248,.5);}
+  .btn:active{transform:translateY(0);}
+  .btn.ghost{background:transparent;color:var(--accent-2);border:1px solid var(--glass-border);box-shadow:none;}
+  .btn.ghost:hover{border-color:var(--accent);background:rgba(56,189,248,.08);}
+  .btn.sm{height:36px;padding:0 14px;font-size:13px;border-radius:10px;}
+
+  /* 配置开关 */
+  .opts{display:flex;flex-wrap:wrap;gap:14px 22px;align-items:center;margin-top:16px;
+    padding-top:16px;border-top:1px solid var(--glass-border);font-size:13px;color:var(--fg-dim);}
+  .opt{display:flex;align-items:center;gap:8px;}
+  .switch{position:relative;width:38px;height:22px;border-radius:12px;background:rgba(255,255,255,.12);
+    border:1px solid var(--glass-border);cursor:pointer;transition:background .2s;flex:none;}
+  .switch.on{background:var(--accent-grad);}
+  .switch .dot{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .2s;}
+  .switch.on .dot{left:18px;}
+  select{height:32px;border-radius:8px;background:rgba(255,255,255,.06);color:var(--fg);
+    border:1px solid var(--glass-border);padding:0 8px;font-family:inherit;}
+
+  /* 区块标题 */
+  .section{margin-top:18px;padding:22px;}
+  .section-title{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700;margin:0 0 14px;}
+  .section-title .idx{width:24px;height:24px;border-radius:7px;background:rgba(56,189,248,.15);
+    color:var(--accent-2);display:grid;place-items:center;font-size:12px;border:1px solid var(--glass-border);}
+
+  /* 链路 trace */
+  .trace{display:flex;flex-wrap:wrap;gap:8px;}
+  .chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:5px 11px;border-radius:20px;
+    border:1px solid var(--glass-border);background:rgba(255,255,255,.04);color:var(--fg-dim);}
+  .chip.blue{color:var(--accent-2);border-color:rgba(34,211,238,.35);background:rgba(34,211,238,.08);}
+  .chip.ok{color:var(--ok);border-color:rgba(52,211,153,.35);background:rgba(52,211,153,.08);}
+  .chip.warn{color:var(--warn);border-color:rgba(251,191,36,.35);background:rgba(251,191,36,.08);}
+  .chip.danger{color:var(--danger);border-color:rgba(248,113,113,.4);background:rgba(248,113,113,.1);}
+
+  /* 观点矩阵 */
+  .matrix{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+  .mcol{background:rgba(255,255,255,.04);border:1px solid var(--glass-border);border-radius:var(--radius-sm);padding:14px;}
+  .mcol h4{margin:0 0 10px;font-size:13px;display:flex;align-items:center;gap:7px;}
+  .mcol.consensus h4{color:var(--ok);} .mcol.diverge h4{color:var(--accent-2);} .mcol.risk h4{color:var(--danger);}
+  .mitem{font-size:13px;line-height:1.6;padding:9px 11px;margin-bottom:8px;border-radius:8px;
+    background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);}
+  .mitem .ids{color:var(--fg-faint);font-size:11px;}
+
+  /* 卡片字段 */
+  .card-field{font-size:13.5px;margin-bottom:9px;}
+  .card-field b{color:var(--accent-2);font-weight:700;}
+
+  /* 结果条 */
+  .ans{border:1px solid var(--glass-border);border-radius:var(--radius-sm);padding:15px 16px;margin-bottom:12px;
+    background:rgba(255,255,255,.03);transition:border-color .2s, background .2s;position:relative;}
+  .ans:hover{border-color:var(--glass-border-strong);background:rgba(255,255,255,.05);}
+  .ans.warn{border-color:rgba(248,113,113,.4);background:rgba(248,113,113,.06);}
+  .ans .txt{font-size:14px;line-height:1.7;}
+  .ans .meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:11px;align-items:center;font-size:12px;color:var(--fg-faint);}
+  .ans .ck{position:absolute;top:14px;right:14px;width:20px;height:20px;border-radius:6px;
+    border:1px solid var(--glass-border);background:rgba(255,255,255,.05);cursor:pointer;display:none;place-items:center;}
+  .ans .ck.show{display:grid;}
+  .ans .ck.checked{background:var(--accent-grad);border-color:transparent;}
+  a.src{color:var(--accent);text-decoration:none;} a.src:hover{text-decoration:underline;}
+
+  .baseline{font-size:13px;color:var(--fg-dim);padding:13px 15px;border-left:3px solid var(--glass-border-strong);
+    background:rgba(255,255,255,.03);border-radius:8px;}
+  .foot{margin-top:26px;text-align:center;color:var(--fg-faint);font-size:12px;}
+  .note{font-size:12px;color:var(--fg-faint);margin-top:8px;}
+
+  @media (max-width:820px){ .matrix{grid-template-columns:1fr;} .searchbar{flex-direction:column;} .btn{width:100%;} }
+  @media (prefers-reduced-motion:reduce){ *{transition:none!important;animation:none!important;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- 顶部品牌 -->
+  <div class="top">
+    <div class="brand">
+      <div class="logo">知</div>
+      <div>
+        <h1>知鉴Search</h1>
+        <div class="tagline">知乎增强检索引擎 · 信息审校层</div>
+      </div>
+    </div>
+    <span class="pill">● 离线演示模式（零额度）</span>
+  </div>
+
+  <!-- Hero 搜索 -->
+  <div class="hero glass">
+    <h2>提问，获得可信、不单边、可追溯的答案</h2>
+    <p>RAG + 四层过滤：时效校验 · 可信度质检 · 结构化萃取 · 观点对照</p>
+    <div class="searchbar">
+      <input id="q" placeholder="试试：笔记本电脑怎么选 / 考研值不值得 / 健身先增肌还是减脂" value="考研值不值得" />
+      <button class="btn" onclick="runSearch()">检索</button>
+    </div>
+    <div class="opts">
+      <div class="opt"><div class="switch on" data-k="filter_ad" onclick="tog(this)"><div class="dot"></div></div>过滤软文</div>
+      <div class="opt"><div class="switch on" data-k="card" onclick="tog(this)"><div class="dot"></div></div>结构化卡片</div>
+      <div class="opt"><div class="switch on" data-k="matrix" onclick="tog(this)"><div class="dot"></div></div>观点矩阵</div>
+      <div class="opt"><div class="switch on" data-k="baseline" onclick="tog(this)"><div class="dot"></div></div>直答基线对照</div>
+      <div class="opt">时效窗口：
+        <select id="tw"><option value="0">不限</option><option value="90">近3个月</option><option value="180">近半年</option><option value="365">近1年</option></select>
+      </div>
+      <div class="opt">可信度阈值：
+        <select id="th"><option value="0">全部</option><option value="0.5">&gt;0.5</option><option value="0.7">&gt;0.7</option></select>
+      </div>
+    </div>
+  </div>
+
+  <div id="results"></div>
+
+  <div class="foot">知鉴Search 原型 · 暗色玻璃科技风（UI/UX Pro Max 设计系统）· 演示数据为内置 seed</div>
+</div>
+
+<script>
+const opts={filter_ad:true,card:true,matrix:true,baseline:true};
+let selectMode=false;
+function tog(el){el.classList.toggle('on');opts[el.dataset.k]=el.classList.contains('on');}
+
+// ---- 内置模拟数据（UI 演示用，真实版由 /api/search 返回）----
+const DATA={
+  intent:"经验查询",
+  trace:[
+    {t:"改写：4个子查询"},{t:"召回：1问 / 5答"},
+    {t:"时效过滤：余5（过时1）",c:"warn"},{t:"可信度质检：软文1",c:"danger"},
+    {t:"重排：Top分 0.74",c:"blue"}
+  ],
+  baseline:"【直答基线】直接给出一个合并后的单一答案，不区分立场、不标注时效与可信度——这正是知鉴Search 的多层过滤要改进的对照项。",
+  matrix:{
+    consensus:[{p:"值不值取决于目标行业的学历门槛",ids:[1,5]}],
+    diverge:[{s:"及时止损派",a:"方向错/不喜欢就该就业，别沉没成本",ids:[3]},
+             {s:"坚持上岸派",a:"准备不足且分数接近，二战值得",ids:[2]}],
+    risk:[{p:"二战最大成本是机会成本与心态",ids:[2,3]}]
+  },
+  card:{
+    conclusion:"是否考研/二战取决于目标行业门槛与个人准备度，无单一标准答案",
+    pre:["目标进高校/科研院所 → 研究生近乎硬门槛","目标互联网开发岗 → 本科+项目有时更吃香"],
+    pros:["学历门槛行业的敲门砖","系统科研训练"],
+    cons:["机会成本高（同龄人已在积累经验）","二战心理压力大"],
+    pitfalls:["盲目跟风考研","忽视最新推免比例变化"],
+    risk:["部分'保过班'宣传疑似软文，已标注"]
+  },
+  answers:[
+    {q:1,txt:"值不值得取决于目标专业的学历门槛。想进科研院所/高校，研究生几乎是硬门槛；但目标是互联网大厂开发岗，本科+项目经历有时更吃香，别盲目跟风。",
+     score:0.74,cred:0.94,fresh:0.89,age:30,stale:false,ad:false,sig:"高校教师",votes:3100,comments:240},
+    {q:2,txt:"二战最大的成本是机会成本和心态。一战因准备不足且分数接近，二战值得；若方向错了或根本不喜欢这个专业，建议及时止损去就业。",
+     score:0.66,cred:0.82,fresh:0.84,age:60,stale:false,ad:false,sig:"二战上岸学长",votes:1800,comments:150},
+    {q:3,txt:"我后悔二战了。不是考不上，是这一年同龄人都在积累工作经验，我出来还是应届生身份，薪资没拉开差距，心理落差很大。",
+     score:0.61,cred:0.78,fresh:0.84,age:45,stale:false,ad:false,sig:"工作两年",votes:920,comments:210},
+    {q:5,txt:"两年前上岸经验：早点确定院校专业，信息差比努力重要。不过现在推免比例变了，建议核对最新招生简章，别照搬我当年的策略。",
+     score:0.55,cred:0.80,fresh:0.32,age:540,stale:true,ad:false,sig:"已毕业研究生",votes:660,comments:73},
+    {q:4,txt:"报我们的考研全程班，保过协议，无敌名师押题，私信领取内部资料，优惠名额有限，点击链接立即下单！",
+     score:0.22,cred:0.18,fresh:0.95,age:8,stale:false,ad:true,sig:"考研规划师",votes:5,comments:1}
+  ]
+};
+
+function runSearch(){
+  const th=parseFloat(document.getElementById('th').value)||0;
+  const tw=parseInt(document.getElementById('tw').value)||0;
+  let ans=DATA.answers.slice();
+  if(opts.filter_ad) ans.sort((a,b)=>a.ad-b.ad);
+  if(th>0) ans=ans.filter(a=>a.cred>=th);
+  if(tw>0) ans=ans.filter(a=>a.age<=tw);
+  render(ans);
+}
+
+function credClass(c){return c>=0.7?'ok':(c>=0.5?'warn':'danger');}
+function esc(s){return s.replace(/</g,'&lt;');}
+
+function render(ans){
+  const R=document.getElementById('results');
+  // 诚实兜底：无高可信内容
+  const hasGood=ans.some(a=>a.cred>=0.5 && !a.ad);
+  let html='';
+
+  // 链路
+  html+=`<div class="section glass"><div class="section-title"><span class="idx">◆</span>检索链路（可解释）
+     <span class="chip blue" style="margin-left:6px">意图：${DATA.intent}</span></div><div class="trace">`;
+  DATA.trace.forEach(t=>html+=`<span class="chip ${t.c||''}">${t.t}</span>`);
+  html+=`</div></div>`;
+
+  if(!hasGood){
+    html+=`<div class="section glass"><div class="section-title"><span class="idx">!</span>诚实兜底</div>
+      <div class="baseline" style="border-left-color:var(--warn);color:var(--warn)">本次未找到高可信内容，以下为内置默认参考（非真实命中），请谨慎采纳。</div></div>`;
+  }
+
+  // 直答基线
+  if(opts.baseline){
+    html+=`<div class="section glass"><div class="section-title"><span class="idx">①</span>知乎直答基线（对照项）</div>
+      <div class="baseline">${esc(DATA.baseline)}</div></div>`;
+  }
+
+  // 观点矩阵
+  if(opts.matrix){
+    const m=DATA.matrix;
+    html+=`<div class="section glass"><div class="section-title"><span class="idx">②</span>观点对照矩阵</div><div class="matrix">
+      <div class="mcol consensus"><h4>✓ 共识</h4>${m.consensus.map(c=>`<div class="mitem">${c.p} <span class="ids">#${c.ids.join(',')}</span></div>`).join('')}</div>
+      <div class="mcol diverge"><h4>⇄ 分歧</h4>${m.diverge.map(d=>`<div class="mitem"><b>${d.s}：</b>${d.a} <span class="ids">#${d.ids.join(',')}</span></div>`).join('')}</div>
+      <div class="mcol risk"><h4>⚠ 风险</h4>${m.risk.map(r=>`<div class="mitem">${r.p} <span class="ids">#${r.ids.join(',')}</span></div>`).join('')}</div>
+    </div></div>`;
+  }
+
+  // 结构化卡片
+  if(opts.card){
+    const c=DATA.card;
+    html+=`<div class="section glass"><div class="section-title"><span class="idx">③</span>结构化卡片（问题级摘要聚合）
+      <button class="btn ghost sm" style="margin-left:auto" onclick="genVideo()">🎬 生成科普视频</button></div>
+      <div class="card-field"><b>核心结论：</b>${c.conclusion}</div>
+      <div class="card-field"><b>适用前提：</b>${c.pre.join('；')}</div>
+      <div class="card-field"><b>优点：</b>${c.pros.join('；')}</div>
+      <div class="card-field"><b>缺点：</b>${c.cons.join('；')}</div>
+      <div class="card-field"><b>踩坑清单：</b>${c.pitfalls.join('；')}</div>
+      <div class="card-field"><b>风险提醒：</b>${c.risk.join('；')}</div></div>`;
+  }
+
+  // 检索结果 + 精选模式
+  html+=`<div class="section glass"><div class="section-title"><span class="idx">④</span>检索结果（四层过滤 + 多因子重排）
+    <button class="btn ghost sm" id="selbtn" style="margin-left:auto" onclick="toggleSelect()">✏️ 自己挑重点重组</button>
+    <button class="btn sm" id="composebtn" style="display:none" onclick="compose()">整合所选</button></div>`;
+  ans.forEach(a=>{
+    html+=`<div class="ans ${a.cred<0.5||a.ad?'warn':''}" data-q="${a.q}">
+      <div class="ck ${selectMode?'show':''}" onclick="pick(this)"></div>
+      <div class="txt">${esc(a.txt)}</div>
+      <div class="meta">
+        <span class="chip blue">综合分 ${a.score}</span>
+        <span class="chip ${credClass(a.cred)}">可信度 ${a.cred}</span>
+        <span class="chip ${a.stale?'danger':''}">时效 ${a.fresh}（${a.age}天前）</span>
+        ${a.stale?'<span class="chip danger">内容过时</span>':''}
+        ${a.ad?'<span class="chip danger">疑似软文</span>':''}
+        <span>👍 ${a.votes} · 💬 ${a.comments} · ${a.sig}</span>
+        <a class="src" href="#" onclick="return false">原文溯源 ↗</a>
+      </div></div>`;
+  });
+  html+=`<div class="note">可信度 = LLM语义判断 + 客观信号(赞/评/权威)双因子；低于0.5标红预警但不删除，保留给你判断。</div></div>`;
+
+  R.innerHTML=html;
+}
+
+function toggleSelect(){
+  selectMode=!selectMode;
+  document.querySelectorAll('.ans .ck').forEach(c=>c.classList.toggle('show',selectMode));
+  document.getElementById('composebtn').style.display=selectMode?'inline-block':'none';
+  document.getElementById('selbtn').textContent=selectMode?'退出精选':'✏️ 自己挑重点重组';
+}
+function pick(el){el.classList.toggle('checked');}
+function compose(){
+  const picked=[...document.querySelectorAll('.ans .ck.checked')].length;
+  alert(picked?`已整合你勾选的 ${picked} 条内容 → 生成定制资料（保留溯源与可信度标签）。\n（原型演示：真实版走 /api/compose）`:'请先勾选想保留的内容');
+}
+function genVideo(){
+  alert('🎬 科普视频生成（原型演示）\n链路：LLM分镜脚本 → 逐镜头配图 → 字幕 → HTML分镜播放器\n（仅对可拆解的深度话题开放）');
+}
+
+runSearch();
+</script>
+</body>
+</html>

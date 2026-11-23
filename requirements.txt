@@ -1,0 +1,9 @@
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pydantic>=2.0
+requests>=2.31
+# 以下为升级到真实链路时才需要（原型 mock 模式不装也能跑）：
+# chromadb>=0.5          # 向量库（Chroma）
+# sentence-transformers  # BGE-large-zh / BGE-Reranker 自建
+# jieba                  # 中文分词清洗
+# beautifulsoup4         # 去 HTML 标签
